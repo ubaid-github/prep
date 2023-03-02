@@ -49,7 +49,48 @@ class AdoEnvApprovers:
         self.headers = {
             "Content-Type": "application/json"
         }
-               
+    
+    def add_approvers_to_env_1(self, project):
+        url = f'{self.organization_url}/{project}/_apis/pipelines/checks/configurations?api-version={self.ADO_API_VERSION}-preview.1'
+        account_id = self.__get_account_id()
+        pipeline_env_id = self.__get_pipeline_env_id(project)
+        if account_id in self.__check_approver_presence(project):
+            print(f"Account ({self.account} with {account_id}) already present in the approvers list for {self.pipeline_env} in {project}, skipping....")
+            sys.exit(1)
+        ADO_BRANCH_CONTROL_GUID = "fe1de3ee-a436-41b4-bb20-f6eb4cb879a7"
+        body = {
+                    "type": {
+                        "id": ADO_BRANCH_CONTROL_GUID,
+                        "name": "Task Check"
+                    },
+                    "settings": {
+                        "definitionRef": {
+                        "id": "86b05a0c-73e6-4f7d-b3cf-e38f3b39a75b",
+                        "name": "evaluatebranchProtection",
+                        "version": "0.0.1"
+                        },
+                        "displayName": "Branch control",
+                        "inputs": {
+                        "allowedBranches": "refs/heads/main",
+                        "ensureProtectionOfBranch": "true",
+                        "allowUnknownStatusBranch": "false"
+                        },
+                        "retryInterval": 5,
+                        "linkedVariableGroup": "null"
+                    },
+                    "resource": {
+                        "type": "environment",
+                        "id": "22",
+                        "name": "QA"
+                    },
+                    "timeout": 43200
+                    }
+
+        response = requests.post(url=url, headers=self.headers, data=json.dumps(body), auth=self.credentials)
+        response.raise_for_status()
+        print(f"Successfully added {self.account} to the {self.pipeline_env} of {project}")
+        return response.status_code
+            
     def add_approvers_to_env(self, project):
         """
             Adds the current user as an approver to the specified pipeline environment in the given project.
@@ -85,9 +126,9 @@ class AdoEnvApprovers:
                 "settings": {
                     "approvers": [
                     {
-                        "displayName": self.account,
-                        "id": account_id,
-                        "uniqueName": self.account
+                        #"displayName": self.account,
+                        "id": account_id
+                        #"uniqueName": self.account
                     }
                     ],
                     "executionOrder": 1,
@@ -201,10 +242,11 @@ class AdoEnvApprovers:
         return pipeline_env_id
       
     
+    
         
 #debug
 if __name__ == '__main__':
-    ado_instance = AdoEnvApprovers("dummy_pat", "ubaidce@gmail.com", "QA1")
-    ado_instance.add_approvers_to_env("ado-env-approver-code")
+    ado_instance = AdoEnvApprovers("dummy_pat", "ubaidce@gmail.com", "QA")
+    ado_instance.add_approvers_to_env_1("ado-env-approver-code")
     
 
